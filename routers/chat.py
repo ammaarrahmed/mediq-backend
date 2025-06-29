@@ -14,7 +14,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")  # Set your OpenRouter API 
 
 # Models
 class ChatRequest(BaseModel):
-    session_id: str
+    session_id: str = None  # Optional to allow auto-generation
     document_text: str
     user_message: str
 
@@ -81,17 +81,20 @@ def chat_endpoint(data: ChatRequest):
     if len(data.document_text) > 10000:  # Limit to 10,000 characters
         raise HTTPException(status_code=400, detail="Document too large. Please limit to 10,000 characters.")
 
+    # Generate a new UUID for the session if not provided
+    session_id = data.session_id or str(uuid.uuid4())
+
     # Create a new chat session if it doesn't already exist
-    create_chat_session(data.session_id)
+    create_chat_session(session_id)
 
     # Save the user's message to Supabase
-    save_message_to_supabase(data.session_id, "user", data.user_message)
+    save_message_to_supabase(session_id, "user", data.user_message)
 
     # Call OpenRouter to generate a response
     response = call_openrouter_model(data.document_text, data.user_message)
 
     # Save the assistant's response to Supabase
-    save_message_to_supabase(data.session_id, "assistant", response)
+    save_message_to_supabase(session_id, "assistant", response)
 
     # Return the response to the client
-    return {"response": response}
+    return {"session_id": session_id, "response": response}
