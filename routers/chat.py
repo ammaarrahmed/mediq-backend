@@ -69,7 +69,7 @@ def save_message_to_supabase(session_id: str, role: str, content: str):
                 "session_id": session_id,
                 "role": role,
                 "content": content,
-                "started_at": "now()"  # Supabase will handle the timestamp
+                "created_at": "now()"  # Supabase will handle the timestamp
             }
         ]).execute()
     except Exception as e:
