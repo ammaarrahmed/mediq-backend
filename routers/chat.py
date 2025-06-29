@@ -25,7 +25,7 @@ def call_openrouter_model(document: str, user_message: str) -> str:
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "mistral-7b-instruct",  # Updated to use Mistral 7B Instruct
+        "model": "mistralai/mistral-7b-instruct",  # Updated to use Mistral 7B Instruct
         "messages": [
             {"role": "system", "content": "You are a helpful assistant. Use the provided document to answer the user's questions."},
             {"role": "system", "content": f"Document: {document}"},
