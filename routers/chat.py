@@ -19,13 +19,13 @@ class ChatRequest(BaseModel):
     user_message: str
 
 def call_openrouter_model(document: str, user_message: str) -> str:
-    """Call OpenRouter API to generate a chat response."""
+    """Call OpenRouter API to generate a chat response using Mistral 7B Instruct."""
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "anthropic/claude-2.0",  # Use the desired model
+        "model": "mistral-7b-instruct",  # Updated to use Mistral 7B Instruct
         "messages": [
             {"role": "system", "content": "You are a helpful assistant. Use the provided document to answer the user's questions."},
             {"role": "system", "content": f"Document: {document}"},
