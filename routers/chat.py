@@ -54,12 +54,12 @@ def create_chat_session(session_id: str):
         supabase.table("chat_sessions").insert([
             {
                 "id": session_id,
+                "user_id": 5,  # Hardcoded user ID
                 "started_at": "now()",  # Supabase will handle the timestamp
             }
         ]).execute()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create chat session: {e}")
-
 def save_message_to_supabase(session_id: str, role: str, content: str):
     """Save a chat message to Supabase."""
     try:
