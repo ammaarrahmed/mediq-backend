@@ -8,13 +8,5 @@ python-jose[cryptography]
 pytesseract
 Pillow
 PyPDF2
-langchain
-langchain-community
-faiss-cpu
-ollama
 pydantic
-transformers
-torch
-sentence-transformers
 requests
-psutil
