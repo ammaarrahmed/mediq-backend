@@ -54,7 +54,7 @@ def create_chat_session(session_id: str):
         supabase.table("chat_sessions").insert([
             {
                 "id": session_id,
-                "created_at": "now()",  # Supabase will handle the timestamp
+                "started_at": "now()",  # Supabase will handle the timestamp
             }
         ]).execute()
     except Exception as e:
@@ -69,7 +69,7 @@ def save_message_to_supabase(session_id: str, role: str, content: str):
                 "session_id": session_id,
                 "role": role,
                 "content": content,
-                "created_at": "now()"  # Supabase will handle the timestamp
+                "started_at": "now()"  # Supabase will handle the timestamp
             }
         ]).execute()
     except Exception as e:
