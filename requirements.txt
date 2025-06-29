@@ -16,3 +16,4 @@ pydantic
 transformers
 torch
 sentence-transformers
+requests

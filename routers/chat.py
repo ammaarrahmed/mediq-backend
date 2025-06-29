@@ -1,26 +1,38 @@
+import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain_community.llms import HuggingFacePipeline
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
-from transformers import pipeline
 from db import supabase
 import uuid
 
 router = APIRouter()
 
-# Initialize the HuggingFace model pipeline globally to avoid reloading on each request
-hf_pipeline = pipeline("text2text-generation", model="t5-small", max_new_tokens=128)
-global_llm = HuggingFacePipeline(pipeline=hf_pipeline)
+# HuggingFace Inference API Configuration
+HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/google/t5-small"
+HUGGINGFACE_API_KEY = "YOUR_HUGGINGFACE_API_KEY"  # Replace with your HuggingFace API key
 
 # Models
 class ChatRequest(BaseModel):
     session_id: str
     document_text: str
     user_message: str
+
+def call_huggingface_model(prompt: str) -> str:
+    """Call HuggingFace Inference API to generate a response."""
+    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+    payload = {"inputs": prompt}
+
+    response = requests.post(HUGGINGFACE_API_URL, headers=headers, json=payload)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Error from HuggingFace API: {response.text}")
+    
+    result = response.json()
+    return result[0]["generated_text"]  # Adjust based on API response structure
 
 @router.post("/chat")
 def chat_endpoint(data: ChatRequest):
@@ -36,9 +48,9 @@ def chat_endpoint(data: ChatRequest):
     # Limit the conversation memory to the last 5 exchanges to save memory
     memory = ConversationBufferWindowMemory(k=5, memory_key="chat_history", return_messages=True)
 
-    # Create the conversational chain with the lightweight model
+    # Create the conversational chain
     chain = ConversationalRetrievalChain.from_llm(
-        llm=global_llm,  # Use the globally initialized lightweight model
+        llm=call_huggingface_model,  # Use the API-based model
         retriever=retriever,
         memory=memory
     )
