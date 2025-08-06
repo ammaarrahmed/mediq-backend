@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import jwt
+import jwt as PyJWT
 from config import settings
 from db import supabase
 import logging
@@ -12,7 +12,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
     """Verify JWT token and return username"""
     try:
         token = credentials.credentials
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = PyJWT.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username = payload.get("sub")
         
         if username is None:
@@ -31,12 +31,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         
         return username
         
-    except jwt.ExpiredSignatureError:
+    except PyJWT.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired"
         )
-    except jwt.JWTError as e:
+    except PyJWT.PyJWTError as e:
         logger.error(f"JWT validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

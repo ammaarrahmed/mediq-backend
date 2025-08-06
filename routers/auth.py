@@ -6,7 +6,7 @@ from db import supabase
 from fastapi import status
 from dotenv import load_dotenv
 import os
-import jwt
+import jwt as PyJWT
 from models.users import UserRole
 
 load_dotenv()
@@ -38,7 +38,7 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return PyJWT.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # Routes
 @router.post("/signup")

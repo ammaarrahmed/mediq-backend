@@ -11,7 +11,7 @@ PyPDF2
 pydantic
 pydantic[email]
 requests
-jwt
+PyJWT>=2.0.0
 scikit-learn
 nltk
 regex
