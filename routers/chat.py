@@ -1,10 +1,11 @@
 import requests
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from db import supabase  # Ensure Supabase client is properly configured in the db module
 import uuid
 import os
+from middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")  # Set your OpenRouter API 
 class ChatRequest(BaseModel):
     session_id: str = None  # Optional to allow auto-generation
     document_text: str
-    user_message: str
+    user_message: str 
 
 def call_openrouter_model(document: str, user_message: str) -> str:
     """Call OpenRouter API to generate a chat response using Mistral 7B Instruct."""
@@ -48,13 +49,13 @@ def call_openrouter_model(document: str, user_message: str) -> str:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse OpenRouter response: {e}")
 
-def create_chat_session(session_id: str):
+def create_chat_session(session_id: str, username: str):
     """Create a new chat session in Supabase."""
     try:
         supabase.table("chat_sessions").insert([
             {
                 "id": session_id,
-                "user_id": 5,  # Hardcoded user ID
+                "user_id": username,
                 "started_at": "now()",  # Supabase will handle the timestamp
             }
         ]).execute()
@@ -76,7 +77,7 @@ def save_message_to_supabase(session_id: str, role: str, content: str):
         raise HTTPException(status_code=500, detail=f"Failed to save chat message: {e}")
 
 @router.post("/chat")
-def chat_endpoint(data: ChatRequest):
+def chat_endpoint(data: ChatRequest, username: str = Depends(get_current_user)):
     # Enforce a document size limit to avoid API issues
     if len(data.document_text) > 10000:  # Limit to 10,000 characters
         raise HTTPException(status_code=400, detail="Document too large. Please limit to 10,000 characters.")
@@ -85,7 +86,7 @@ def chat_endpoint(data: ChatRequest):
     session_id = data.session_id or str(uuid.uuid4())
 
     # Create a new chat session if it doesn't already exist
-    create_chat_session(session_id)
+    create_chat_session(session_id, username)
 
     # Save the user's message to Supabase
     save_message_to_supabase(session_id, "user", data.user_message)

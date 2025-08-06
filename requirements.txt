@@ -9,4 +9,9 @@ pytesseract
 Pillow
 PyPDF2
 pydantic
+pydantic[email]
 requests
+jwt
+scikit-learn
+nltk
+regex

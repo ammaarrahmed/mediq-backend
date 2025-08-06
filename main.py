@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import pytesseract
 
 from config import settings
-from routers import auth, documents, chat
+from routers import auth, documents, chat, profile, medical
 
 # Configure logging
 logging.basicConfig(
@@ -45,3 +45,5 @@ async def health_check():
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(documents.router, prefix="/docs", tags=["Documents"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+app.include_router(profile.router, prefix="/profile", tags=["User Profiles"])
+app.include_router(medical.router, prefix="/medical", tags=["Medical Analysis"])
