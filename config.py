@@ -25,6 +25,8 @@ class Settings:
     CORS_ORIGINS: list = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://mediq-frontend-2lm7.onrender.com",
+        "https://mediq-frontend-2lm7.onrender.com/",
         # Add your production domain here later
     ]
     
