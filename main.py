@@ -1,12 +1,14 @@
 import logging
 import os
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import pytesseract
 
 from config import settings
 from routers import auth, documents, chat, profile, medical
+from middleware.auth import get_current_user
 
 # Configure logging
 logging.basicConfig(
@@ -16,7 +18,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create FastAPI app
-app = FastAPI(title="MedIQ Backend", version="1.0.0")
+app = FastAPI(
+    title="MedIQ Backend", 
+    version="1.0.0",
+    description="""
+    ### Authentication Instructions for Testing
+    
+    To test protected endpoints:
+    
+    1. First, call `/auth/login` to get an access token
+    2. Click the "Authorize" button at the top right 
+    3. In the value field, enter: `Bearer your_access_token`
+    4. Click "Authorize" then "Close"
+    5. Now you can test all protected endpoints
+    
+    Test credentials: Use your registered username and password.
+    """,
+    swagger_ui_parameters={"persistAuthorization": True}
+)
 
 # Configure Tesseract for deployment
 if os.name == 'nt':  # Windows
@@ -40,6 +59,11 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+# Test authentication endpoint
+@app.get("/test-auth")
+async def test_auth(username: str = Depends(get_current_user)):
+    return {"authenticated": True, "username": username}
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])

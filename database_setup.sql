@@ -62,8 +62,12 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id),
+    title VARCHAR(255),
+    document_id UUID REFERENCES documents(id),
+    last_message TEXT,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    ended_at TIMESTAMP WITH TIME ZONE
+    ended_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- Chat messages table
@@ -212,6 +216,10 @@ FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
 
 CREATE TRIGGER update_doctor_profiles_timestamp
 BEFORE UPDATE ON doctor_profiles
+FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
+
+CREATE TRIGGER update_chat_sessions_timestamp
+BEFORE UPDATE ON chat_sessions
 FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
 
 -- Sample data for testing (optional - comment out if not needed)
