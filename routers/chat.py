@@ -131,80 +131,104 @@ def call_openrouter_model(document: str, user_message: str, history: List[Dict[s
 def create_chat_session(session_id: str, username: str, title: str = None, document_id: str = None) -> Dict[str, Any]:
     """Create a new chat session in Supabase."""
     try:
+        # Create basic session data
         session_data = {
             "id": session_id,
-            "user_id": username,
-            "started_at": "now()",  # Supabase will handle the timestamp
+            "user_id": username
+            # Don't include started_at as it has a default value in the DB
         }
         
+        # Add title if provided
         if title:
             session_data["title"] = title
             
-        if document_id:
-            session_data["document_id"] = document_id
-            
+        # Only add document_id if it's a valid non-empty value
+        if document_id and document_id.strip():
+            # Check if the document exists before referencing it
+            doc_check = supabase.table("documents").select("id").eq("id", document_id).execute()
+            if doc_check.data:
+                session_data["document_id"] = document_id
+        
+        # Insert the session data
         result = supabase.table("chat_sessions").insert(session_data).execute()
         return result.data[0] if result.data else {}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create chat session: {e}")
+        # Log the detailed error for debugging
+        print(f"Chat session creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create chat session: {str(e)}")
 def save_message_to_supabase(session_id: str, role: str, content: str) -> Dict[str, Any]:
     """Save a chat message to Supabase."""
     try:
         message_id = str(uuid.uuid4())
-        result = supabase.table("chat_messages").insert({
+        
+        # Insert the message
+        message_data = {
             "id": message_id,
             "session_id": session_id,
             "role": role,
-            "content": content,
-            "created_at": "now()"  # Supabase will handle the timestamp
-        }).execute()
+            "content": content
+            # Don't include created_at as it has a default value in the DB
+        }
+        
+        result = supabase.table("chat_messages").insert(message_data).execute()
         
         # Also update the last_message field in the session
         if role == "user":
-            supabase.table("chat_sessions").update({
-                "last_message": content[:100],  # First 100 chars of message
-                "updated_at": "now()"
-            }).eq("id", session_id).execute()
+            # Limit message preview to 100 characters
+            preview = content[:100] if content else ""
+            
+            update_data = {
+                "last_message": preview
+                # Don't include updated_at as it will be handled by the trigger
+            }
+            
+            supabase.table("chat_sessions").update(update_data).eq("id", session_id).execute()
             
         return result.data[0] if result.data else {"id": message_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save chat message: {e}")
+        # Log the detailed error for debugging
+        print(f"Save message error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save chat message: {str(e)}")
 
 @router.post("/chat")
 async def chat_endpoint(data: ChatRequest, username: str = Depends(get_current_user)):
     """Chat with the AI assistant"""
-    # Set default values if needed
-    document_text = data.document_text or ""
+    try:
+        # Set default values if needed
+        document_text = data.document_text or ""
+        
+        # Enforce a document size limit to avoid API issues
+        if document_text and len(document_text) > 10000:  # Limit to 10,000 characters
+            raise HTTPException(status_code=400, detail="Document too large. Please limit to 10,000 characters.")
     
-    # Enforce a document size limit to avoid API issues
-    if document_text and len(document_text) > 10000:  # Limit to 10,000 characters
-        raise HTTPException(status_code=400, detail="Document too large. Please limit to 10,000 characters.")
-
-    # Generate a new UUID for the session if not provided
-    session_id = data.session_id or str(uuid.uuid4())
-    is_new_session = not data.session_id
-
-    # Create a new chat session if it's a new session
-    if is_new_session:
-        title = f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        create_chat_session(session_id, username, title, data.document_id)
-
-    # Get chat history if this is an existing session
-    chat_history = []
-    history_for_api = []
-    if not is_new_session:
-        # Check if the session exists and belongs to the user
-        if not check_session_exists(session_id, username):
-            raise HTTPException(status_code=403, detail="Chat session not found or access denied")
-        
-        # Get previous messages
-        chat_history = get_chat_history(session_id, limit=10)  # Last 10 messages
-        
-        # Format history for the API
-        history_for_api = [
-            {"role": msg["role"], "content": msg["content"]} 
-            for msg in chat_history
-        ]
+        # Generate a new UUID for the session if not provided
+        session_id = data.session_id or str(uuid.uuid4())
+        is_new_session = not data.session_id
+    
+        # Create a new chat session if it's a new session
+        if is_new_session:
+            title = f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            create_chat_session(session_id, username, title, data.document_id)
+    
+        # Get chat history if this is an existing session
+        chat_history = []
+        history_for_api = []
+        if not is_new_session:
+            # Check if the session exists and belongs to the user
+            if not check_session_exists(session_id, username):
+                raise HTTPException(status_code=403, detail="Chat session not found or access denied")
+            
+            # Get previous messages
+            chat_history = get_chat_history(session_id, limit=10)  # Last 10 messages
+            
+            # Format history for the API
+            history_for_api = [
+                {"role": msg["role"], "content": msg["content"]} 
+                for msg in chat_history
+            ]
+    except Exception as e:
+        print(f"Error in chat endpoint setup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat setup error: {str(e)}")
     
     # Save the user's message to Supabase
     user_msg = save_message_to_supabase(session_id, "user", data.user_message)
@@ -233,14 +257,22 @@ async def get_sessions(username: str = Depends(get_current_user)):
 @router.post("/sessions", response_model=Dict[str, Any])
 async def create_session(data: CreateSessionRequest, username: str = Depends(get_current_user)):
     """Create a new chat session."""
-    session_id = str(uuid.uuid4())
-    session = create_chat_session(
-        session_id=session_id,
-        username=username,
-        title=data.title,
-        document_id=data.document_id
-    )
-    return {"session_id": session_id, "session": session}
+    try:
+        session_id = str(uuid.uuid4())
+        
+        # Use a default title if none provided
+        title = data.title if data.title else f"Chat {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        
+        session = create_chat_session(
+            session_id=session_id,
+            username=username,
+            title=title,
+            document_id=data.document_id
+        )
+        return {"session_id": session_id, "session": session}
+    except Exception as e:
+        print(f"Create session endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
 
 @router.put("/sessions/{session_id}", response_model=BaseResponse)
 async def update_session(
